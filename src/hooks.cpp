@@ -41,6 +41,8 @@
 #include "d/actor/d_a_npc_zrz.h"
 #include "d/actor/d_a_obj_crvgate.h"
 #include "d/actor/d_a_obj_item.h"
+#include "d/actor/d_a_obj_keyhole.h"
+#include "d/actor/d_a_obj_kshutter.h"
 #include "d/actor/d_a_obj_life_container.h"
 #include "d/actor/d_a_obj_master_sword.h"
 #include "d/actor/d_a_obj_smallkey.h"
@@ -231,6 +233,8 @@ DEFINE_HOOK_SYMBOL("daWindStone_c::chkEveOccur", bool(daWindStone_c*), daWindSto
 DEFINE_HOOK(&daObjCRVGATE_c::SetOpen, daObjCRVGATE_c__SetOpen);
 DEFINE_HOOK(&daObjCRVGATE_c::create, daObjCRVGATE_c__create);
 DEFINE_HOOK(&daObjCRVGATE_c::setBaseMtx, daObjCRVGATE_c__setBaseMtx);
+
+DEFINE_HOOK(&daObjKshtr_c::keyUnlockInit, daObjKshtr_c__keyUnlockInit);
 
 namespace randomizer::ui {
 GameModeNewSaveState *g_dialogSelectModeState = nullptr;
@@ -3534,6 +3538,20 @@ void hookPostObjCRVGATESetBaseMtx(ModContext*, void* args, void* retval, void*) 
         baseMtx[1][3] -= 100000.f;
     }
 }
+
+HookAction hookPreObjKShtrKeyUnlockInit(ModContext*, void* args, void*, void*) {
+    auto kShtr = mods::arg<daObjKshtr_c*>(args, 0);
+    auto keyHole = reinterpret_cast<obj_keyhole_class*>(fopAcM_SearchByID(kShtr->mKeyHoleId));
+    if (keyHole != NULL) {
+        if (!strcmp(keyHole->arcname, "Obj_bkey3")) {
+            // If this is the Lakebed Boss Door that we're opening, add a small key
+            // to counteract the door shutter subtracting one
+            dComIfGp_setItemKeyNumCount(1);
+        }
+    }
+
+    return HOOK_CONTINUE;
+}
 }
 
 ModResult initialize() {
@@ -3714,6 +3732,7 @@ ModResult initialize() {
     ADD_HOOK_POST(daObjCRVGATE_c__create, hookPostObjCRVGATECreate);
     ADD_HOOK_POST(daObjCRVGATE_c__setBaseMtx, hookPostObjCRVGATESetBaseMtx);
 
+    ADD_HOOK_PRE(daObjKshtr_c__keyUnlockInit, hookPreObjKShtrKeyUnlockInit);
     return MOD_OK;
 }
 
@@ -3863,6 +3882,7 @@ ModResult uninstall() {
     mods::hook::uninstall<daObjCRVGATE_c__create>(svc_hook);
     mods::hook::uninstall<daObjCRVGATE_c__setBaseMtx>(svc_hook);
 
+    mods::hook::uninstall<daObjKshtr_c__keyUnlockInit>(svc_hook);
     return MOD_OK;
 }
 }
