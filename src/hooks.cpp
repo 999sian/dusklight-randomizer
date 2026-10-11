@@ -2652,6 +2652,33 @@ void hookPostObjZraRockCreate(ModContext*, void* args, void* retval, void*) {
     }
 }
 
+// Helper function, not a hook
+void menuRingUpdateItemSlotImage(dMenu_Ring_c* menuRing, u8 slot, u8 itemId) {
+    for (int i = 0; i < menuRing->mTotalItemTexToAlloc; i++) {
+        if (menuRing->mItemSlots[i] == slot) {
+            s32 i_textureNum =
+                dMeter2Info_readItemTexture(itemId, menuRing->mpItemBuf[i][0], NULL, menuRing->mpItemBuf[i][1], NULL,
+                                            menuRing->mpItemBuf[i][2], NULL, NULL, NULL, -1);
+            for (int k = 0; k < i_textureNum; k++) {
+                // Delete old texture so we aren't leaking memory
+                if (menuRing->mpItemTex[i][k] != NULL) {
+                    JKR_DELETE(menuRing->mpItemTex[i][k]);
+                }
+
+                menuRing->mpItemTex[i][k] = JKR_NEW J2DPicture(menuRing->mpItemBuf[i][k]);
+                menuRing->mpItemTex[i][k]->setBasePosition(J2DBasePosition_4);
+            }
+            dMeter2Info_setItemColor(itemId, menuRing->mpItemTex[i][0], menuRing->mpItemTex[i][1], menuRing->mpItemTex[i][2], NULL);
+            u8 texScale = dItem_data::getTexScale(itemId);
+            f32 fVar1 = (texScale / 100.0f);
+            f32 fVar2 = (menuRing->mpItemBuf[i][0]->width / 48.0f);
+            fVar1 = fVar2 * fVar1;
+            menuRing->mItemSlotParam1[i] = fVar1;
+            menuRing->mItemSlotParam2[i] = (menuRing->mpItemBuf[i][0]->height / 48.0f * (texScale / 100.0f));
+        }
+    }
+}
+
 // Things used for rando additional data
 struct ItemTexture {
     J2DPicture* picture = nullptr;
@@ -2668,6 +2695,8 @@ J2DTextBox* itemWheelDunText = nullptr;
 J2DTextBox* itemWheelKeyText = nullptr;
 JUTFont* itemWheelTextFont = nullptr;
 bool shouldDisplayMenu = false;
+int questItemImageTimer{};
+u8 questItemSlotImageItemId{};
 
 void hookPostMenuRingCreate(ModContext*, void*, void*, void*) {
     itemWheelTextFont = mDoExt_getMesgFont();
@@ -2735,12 +2764,52 @@ void hookPostMenuRingCreate(ModContext*, void*, void*, void*) {
 
     snprintf(itemWheelTextBuf, sizeof(itemWheelTextBuf), "\n\n\n%d (%d)\n%d (%d)\n%d (%d)\n%d (%d)\n%d (%d)\n%d (%d)\n%d (%d)\n%d (%d)\n%d (%d)\n%d (%d)\n%s\n%s\n%s\n", ftKeyNum, ftTotalKeyNum, gmKeyNum, gmTotalKeyNum, lbtKeyNum, lbtTotalKeyNum, agKeyNum, agTotalKeyNum, sprKeyNum, sprTotalKeyNum, totKeyNum, totTotalKeyNum, citsKeyNum, citsTotalKeyNum, potKeyNum, potTotalKeyNum, hcKeyNum, hcTotalKeyNum, campKeyNum, campTotalKeyNum, getYesNoText(hasFaronGateKey), getYesNoText(hasCoroGateKey),getYesNoText(hasGateKey));
     itemWheelKeyText->setString(itemWheelTextBuf);
+
+    questItemImageTimer = 0;
+    questItemSlotImageItemId = dComIfGs_getItem(0x15, true);
 }
 
-void hookPostMenuRingMove(ModContext*, void*, void*, void*) {
+void hookPostMenuRingMove(ModContext*, void* args, void*, void*) {
+    auto menuRing = mods::arg<dMenu_Ring_c*>(args, 0);
+
     // Check every frame if we've toggled displaying the menu
     if (mDoCPd_c::getTrigStart(PAD_1)) {
         shouldDisplayMenu = !shouldDisplayMenu;
+    }
+
+    // Switch between images of what our current quest items are if we're not hovering over the slot
+    if (questItemSlotImageItemId != 0xFF && getWarashibeItemCount() >= 2) {
+        // Don't cycle if we are currently on the quest item slot
+        if (menuRing->mItemSlots[menuRing->mCurrentSlot] != 0x15) {
+            questItemImageTimer += 1;
+            if (questItemImageTimer % 60 == 0 and questItemImageTimer > 0) {
+                static constexpr std::array kQuestItems = {
+                    dItemNo_Randomizer_LETTER_e,
+                    dItemNo_Randomizer_BILL_e,
+                    dItemNo_Randomizer_WOOD_STATUE_e,
+                    dItemNo_Randomizer_IRIAS_PENDANT_e,
+                    dItemNo_Randomizer_HORSE_FLUTE_e
+                };
+
+                for (int i = 0; i < kQuestItems.size(); i++) {
+                    if (questItemSlotImageItemId == kQuestItems[i]) {
+                        auto nextItemIndex = i + 1;
+                        if (nextItemIndex >= kQuestItems.size()) {
+                            nextItemIndex = 0;
+                        }
+                        questItemSlotImageItemId = kQuestItems[nextItemIndex];
+                        if (haveItem(questItemSlotImageItemId)) {
+                            menuRingUpdateItemSlotImage(menuRing, 0x15, questItemSlotImageItemId);
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            questItemImageTimer = 0;
+            questItemSlotImageItemId = dComIfGs_getItem(0x15, true);
+            menuRingUpdateItemSlotImage(menuRing, 0x15, questItemSlotImageItemId);
+        }
     }
 }
 
@@ -2920,32 +2989,7 @@ void hookPostMenuRingSetActiveCursor(ModContext*, void* args, void*, void*) {
             // Allow switching quest items if dpad right is pressed
             if (mDoCPd_c::getTrigRight(PAD_1) || mDoCPd_c::getTrigA(PAD_1)) {
                 setNextWarashibeItem();
-                // Update slot image
-                for (int i = 0; i < menuRing->mTotalItemTexToAlloc; i++) {
-                    if (menuRing->mItemSlots[i] == 0x15) {
-                        u8 questItem = dComIfGs_getItem(menuRing->mItemSlots[i], false);
-
-                        s32 i_textureNum =
-                            dMeter2Info_readItemTexture(questItem, menuRing->mpItemBuf[i][0], NULL, menuRing->mpItemBuf[i][1], NULL,
-                                                        menuRing->mpItemBuf[i][2], NULL, NULL, NULL, -1);
-                        for (int k = 0; k < i_textureNum; k++) {
-                            // Delete old texture so we aren't leaking memory
-                            if (menuRing->mpItemTex[i][k] != NULL) {
-                                JKR_DELETE(menuRing->mpItemTex[i][k]);
-                            }
-
-                            menuRing->mpItemTex[i][k] = JKR_NEW J2DPicture(menuRing->mpItemBuf[i][k]);
-                            menuRing->mpItemTex[i][k]->setBasePosition(J2DBasePosition_4);
-                        }
-                        dMeter2Info_setItemColor(questItem, menuRing->mpItemTex[i][0], menuRing->mpItemTex[i][1], menuRing->mpItemTex[i][2], NULL);
-                        u8 texScale = dItem_data::getTexScale(questItem);
-                        f32 fVar1 = (texScale / 100.0f);
-                        f32 fVar2 = (menuRing->mpItemBuf[i][0]->width / 48.0f);
-                        fVar1 = fVar2 * fVar1;
-                        menuRing->mItemSlotParam1[i] = fVar1;
-                        menuRing->mItemSlotParam2[i] = (menuRing->mpItemBuf[i][0]->height / 48.0f * (texScale / 100.0f));
-                    }
-                }
+                menuRingUpdateItemSlotImage(menuRing, 0x15, dComIfGs_getItem(0x15, true));
             }
         }
     }
