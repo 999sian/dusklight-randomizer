@@ -2677,7 +2677,7 @@
   Entrance Couple Tag: Zoras Domain From Upper Zoras River
   Forward:
     Connection: Upper Zoras River To Zoras Domain (Underwater) -> Zoras Domain To Upper Zoras River (Underwater)
-    Alias: Upper Zoras River -> Zoras Domain (Swimming)
+    Alias: Upper Zoras River -> Zoras Domain (Underwater)
     Stage: 50
     Room: 1
     Spawn: 12
