@@ -53,8 +53,14 @@ namespace Utility::Endian
 
     template<typename T> requires CanByteswap<T> && (!std::is_enum_v<T>)
     constexpr T toPlatform(const Type& src, const T& value) {
-        if (src != target) return byteswap(value);
-        return value;
+        if constexpr (std::is_same_v<T, float>) {
+            return std::bit_cast<float>(toPlatform(src, std::bit_cast<uint32_t>(value)));
+        } else if constexpr (std::is_same_v<T, double>) {
+            return std::bit_cast<double>(toPlatform(src, std::bit_cast<uint64_t>(value)));
+        } else {
+            if (src != target) return byteswap(value);
+            return value;
+        }
     }
 
     //for enums
@@ -67,7 +73,7 @@ namespace Utility::Endian
     //doesn't work for enums
     template<typename T> requires CanByteswap<T> && (!std::is_enum_v<T>)
     constexpr void toPlatform_inplace(const Type& src, T& value) {
-        if (src != target) value = byteswap(value);
+        value = toPlatform(src, value);
     }
 
     //for enums

@@ -17,6 +17,11 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     endif ()
 endif ()
 
+if (MSVC)
+    set_property(SOURCE generator/utility/string.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+            _SILENCE_CXX20_CODECVT_FACETS_DEPRECATION_WARNING)
+endif ()
+
 # Generator dependencies, linked statically into the mod library (no CRT crossing).
 include(FetchContent)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
