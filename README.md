@@ -11,6 +11,16 @@ This fork contains build fixes. Xbox needs Randomizer bundled in a signed
 app package; copying a `.dusk` or DLL into app data will not work.
 The build steps below are for desktop.
 
+If your private Xbox app already bundles Randomizer:
+
+1. **Mods** → enable **Dusklight Randomizer**.
+2. **Randomizer** → **Seed Options** → choose settings.
+3. **Seed Management** → **Generate Seed** → wait.
+4. **Play** → **Randomizer** game mode → new save slot.
+5. **Selected Seed** → choose your seed → **Start Randomizer**.
+
+Menu steps checked against source; a full Xbox playthrough is unverified.
+
 [Simple Xbox mod guide](https://github.com/999sian/dusklight/blob/xbox-one-s-uwp-v2.0.3/docs/xbox-one-s-mod-compatibility.md#randomizer)
 
 ## Building
