@@ -23,7 +23,12 @@ Menu steps checked against source; a full Xbox playthrough is unverified.
 
 [Simple Xbox mod guide](https://github.com/999sian/dusklight/blob/xbox-one-s-uwp-v2.0.3/docs/xbox-one-s-mod-compatibility.md#randomizer)
 
-## Building
+## Building for Xbox
+
+Follow the [Xbox build steps](https://github.com/999sian/dusklight/blob/xbox-one-s-uwp-v2.0.3/docs/xbox-one-s-randomizer-build.md).
+Randomizer must be built with the Xbox host and bundled into its signed MSIX.
+
+## Building for desktop
 
 ```sh
 git clone https://github.com/TwilitRealm/dusklight-randomizer/
